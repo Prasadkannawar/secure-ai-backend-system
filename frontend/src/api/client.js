@@ -35,10 +35,12 @@ export const logout = () => localStorage.removeItem('token')
 export const getMe = () => request('GET', '/auth/me')
 
 // AI
-export const analyzeSentiment = (text) =>
-  request('POST', '/ai/analyze', { text })
-
-export const aiHealth = () => request('GET', '/ai/health')
+export const analyzeSentiment = (text)  => request('POST', '/ai/analyze/sentiment', { text })
+export const analyzeEmotion   = (text)  => request('POST', '/ai/analyze/emotion',   { text })
+export const analyzeFull      = (text)  => request('POST', '/ai/analyze/full',      { text })
+export const analyzeBatch     = (texts) => request('POST', '/ai/analyze/batch',     { texts })
+export const getHistory       = (limit = 50) => request('GET', `/ai/history?limit=${limit}`)
+export const aiHealth         = ()      => request('GET',  '/ai/health')
 
 // Admin
 export const getStats = () => request('GET', '/admin/stats')

@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar'
 
 function StatCard({ label, value, color = 'text-white' }) {
   return (
-    <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-slate-200 dark:border-gray-800">
       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
       <p className={`text-3xl font-bold ${color}`}>{value ?? '—'}</p>
     </div>
@@ -61,13 +61,13 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-950">
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 py-10 space-y-8">
 
         <div>
-          <h2 className="text-2xl font-bold text-white">Admin Dashboard</h2>
-          <p className="text-gray-400 mt-1">Monitor usage, manage users, and control IP access</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Dashboard</h2>
+          <p className="text-slate-500 dark:text-gray-400 mt-1">Monitor usage, manage users, and control IP access</p>
         </div>
 
         {error && (
@@ -78,7 +78,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-900 rounded-xl p-1 w-fit border border-gray-800">
+        <div className="flex gap-1 bg-white dark:bg-gray-900 rounded-xl p-1 w-fit border border-slate-200 dark:border-gray-800">
           {tabs.map(t => (
             <button
               key={t.key}
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
 
         {/* Users Tab */}
         {tab === 'users' && (
-          <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase tracking-wider">
@@ -191,7 +191,7 @@ export default function AdminDashboard() {
 
         {/* Blocked IPs Tab */}
         {tab === 'ips' && (
-          <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 overflow-hidden">
             {blockedIps.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-4xl mb-3">🛡️</div>

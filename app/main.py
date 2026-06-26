@@ -54,13 +54,10 @@ app.include_router(admin.router, prefix="/admin", tags=["admin"])
 @app.on_event("startup")
 async def on_startup():
     from datetime import datetime, timezone
-    from app.routers.ai import load_model
-    import app.routers.ai as ai_module
+    from app.services.ai_engine import engine
 
-    # Load AI model
-    ai_module._model = load_model()
+    engine.load()
 
-    # Log server start to file
     timestamp = datetime.now(timezone.utc).isoformat()
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"[{timestamp}] SERVER STARTED\n")
