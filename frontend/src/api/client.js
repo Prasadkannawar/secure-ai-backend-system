@@ -1,4 +1,4 @@
-const BASE = ''  // Vite proxy forwards /auth, /ai, /admin to localhost:8000
+const BASE = import.meta.env.VITE_API_URL || ''
 
 function getToken() {
   return localStorage.getItem('token')
@@ -35,8 +35,8 @@ export const logout = () => localStorage.removeItem('token')
 export const getMe = () => request('GET', '/auth/me')
 
 // AI
-export const predict = (input_data) =>
-  request('POST', '/ai/predict', { input_data })
+export const analyzeSentiment = (text) =>
+  request('POST', '/ai/analyze', { text })
 
 export const aiHealth = () => request('GET', '/ai/health')
 

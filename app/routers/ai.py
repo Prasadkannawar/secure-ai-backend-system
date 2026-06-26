@@ -1,41 +1,30 @@
-from contextlib import asynccontextmanager
-from typing import List
+import logging
 
-import torch
-import torch.nn as nn
+from transformers import pipeline, Pipeline
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.middleware.rate_limiter import limiter, role_limit
 from app.models.user import UserOut
 from app.utils.security import get_current_user
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
-# Model definition & global state
+# Model — DistilBERT fine-tuned on SST-2 (binary sentiment classification)
 # ---------------------------------------------------------------------------
 
-class _DummyLinear(nn.Module):
-    """
-    Placeholder 8→4 linear model used for development.
-    SWAP: replace with torch.load("path/to/your_model.pt") below.
-    """
-    def __init__(self):
-        super().__init__()
-        self.fc = nn.Linear(8, 4)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.fc(x)
+_model: Pipeline | None = None
 
 
-# Global model reference — populated during startup
-_model: nn.Module | None = None
-
-
-def load_model() -> nn.Module:
-    # SWAP: replace the two lines below with your real model loading logic
-    # e.g.: model = torch.load("models/my_model.pt", map_location="cpu")
-    model = _DummyLinear()
-    model.eval()
+def load_model() -> Pipeline:
+    logger.info("Loading DistilBERT sentiment model...")
+    model = pipeline(
+        "text-classification",
+        model="distilbert-base-uncased-finetuned-sst-2-english",
+        device=-1,  # CPU inference
+    )
+    logger.info("Sentiment model ready.")
     return model
 
 
@@ -43,12 +32,13 @@ def load_model() -> nn.Module:
 # Pydantic schemas
 # ---------------------------------------------------------------------------
 
-class PredictRequest(BaseModel):
-    input_data: List[float]
+class SentimentRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000, description="Text to classify")
 
 
-class PredictResponse(BaseModel):
-    prediction: List[float]
+class SentimentResponse(BaseModel):
+    label: str          # "POSITIVE" or "NEGATIVE"
+    score: float        # confidence 0–1
     user_id: str
 
 
@@ -61,46 +51,34 @@ router = APIRouter()
 
 @router.get("/health")
 async def ai_health():
-    """Public endpoint — confirms the model is loaded."""
-    return {"status": "ok", "model": "loaded" if _model is not None else "not loaded"}
+    return {
+        "status": "ok" if _model is not None else "loading",
+        "model": "distilbert-base-uncased-finetuned-sst-2-english",
+    }
 
 
-@router.post("/predict", response_model=PredictResponse)
-@limiter.limit(role_limit)          # "10/minute" for user, "100/minute" for admin
-async def predict(
+@router.post("/analyze", response_model=SentimentResponse)
+@limiter.limit(role_limit)
+async def analyze(
     request: Request,
-    body: PredictRequest,
+    body: SentimentRequest,
     current_user: UserOut = Depends(get_current_user),
 ):
-    # --- Input sanitization ---
-    if len(body.input_data) == 0 or len(body.input_data) > 512:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="input_data must contain between 1 and 512 float values",
-        )
-    for i, v in enumerate(body.input_data):
-        if not isinstance(v, (int, float)) or v != v:  # NaN check
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Non-float value at index {i}: {v}",
-            )
-
     if _model is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model is not loaded",
+            detail="Model is still loading — retry in a moment",
         )
-
-    # --- Inference ---
     try:
-        with torch.no_grad():
-            tensor = torch.tensor(body.input_data, dtype=torch.float32).unsqueeze(0)
-            output: torch.Tensor = _model(tensor)
-            prediction = output.squeeze(0).tolist()
-    except Exception:
+        result = _model(body.text[:512])[0]   # DistilBERT max context = 512 tokens
+        return SentimentResponse(
+            label=result["label"],
+            score=round(float(result["score"]), 4),
+            user_id=current_user.id,
+        )
+    except Exception as e:
+        logger.error(f"Inference failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Inference failed",
         )
-
-    return PredictResponse(prediction=prediction, user_id=current_user.id)
